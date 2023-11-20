@@ -11,6 +11,7 @@ const ReusableTable = () => {
   const [selectedFilters, setSelectedFilters] = useState({});
   const [pagination, setPagination] = useState({ current: 1, pageSize: 8 });
   const [hideIDColumn,setHideIDColumn]=useState(false);
+  const [columnSearchText, setColumnSearchText] = useState({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,7 +27,45 @@ const ReusableTable = () => {
 
     fetchData();
   }, []);
+  const handleColumnSearch = (selectedColumn, value) => {
+    const newColumnSearchText = { ...columnSearchText, [selectedColumn]: value.toLowerCase() };
+    setColumnSearchText(newColumnSearchText);
 
+    const filtered = filteredData.filter((item) =>
+      Object.entries(newColumnSearchText).every(([column, searchValue]) =>
+        item[column]?.toString().toLowerCase().includes(searchValue)
+      )
+    );
+
+    setFilteredData(filtered);
+    setPagination({ ...pagination, current: 1 });
+  };
+
+  const handleColumnSearchClear = (selectedColumn) => {
+    const newColumnSearchText = { ...columnSearchText };
+    delete newColumnSearchText[selectedColumn];
+    setColumnSearchText(newColumnSearchText);
+
+    const filtered = filteredData.filter((item) =>
+      Object.entries(newColumnSearchText).every(([column, searchValue]) =>
+        item[column]?.toString().toLowerCase().includes(searchValue)
+      )
+    );
+
+    setFilteredData(filtered);
+    setPagination({ ...pagination, current: 1 });
+  };
+
+  const handleSort = (column) => {
+    const sortedData = [...filteredData].sort((a, b) => {
+      if (a[column] && b[column]) {
+        return a[column].toString().localeCompare(b[column].toString());
+      }
+      return 0;
+    });
+
+    setFilteredData(sortedData);
+  };
   const handleSearch = (e) => {
     const searchText = e.target.value.toLowerCase();
     setSearchText(searchText);
@@ -80,9 +119,16 @@ const ReusableTable = () => {
      visible:true,
     },
     {
+      title: 'Category',
+      dataIndex: 'category',
+      sorter: (a, b) => a.category.localeCompare(b.category),
+      ellipsis: true,
+      visible: true,
+    },
+    {
       title: 'Image',
-      dataIndex: 'image', // Assuming 'image' is the key for the image URL in your data
-      render: (imageURL) => <img src={imageURL} alt="Product" style={{ width: '150px',height:'80px' }} />, // Rendering the image as an <img> tag
+      dataIndex: 'image', 
+      render: (imageURL) => <img src={imageURL} alt="Product" style={{ width: '150px',height:'80px' }} />, 
       visible: true,
     },
     
@@ -95,7 +141,38 @@ const ReusableTable = () => {
     <div>
       <Space direction="vertical" style={{ marginBottom: 16 }}>
         <Input placeholder="Search" onChange={handleSearch} />
-        <Checkbox.Group onChange={handleCheckboxChange}>
+        {columns.map((column) => (
+          <Input
+            key={column.dataIndex}
+            placeholder={`Search ${column.title}`}
+            onChange={(e) => handleColumnSearch(column.dataIndex, e.target.value)}
+            value={columnSearchText[column.dataIndex] || ''}
+            style={{ width: 150, marginBottom: 8 }}
+            allowClear
+            suffix={
+              <span
+                onClick={() => handleColumnSearchClear(column.dataIndex)}
+                style={{ cursor: 'pointer' }}
+              >
+                Clear
+              </span>
+            }
+          />
+        ))}
+        <Checkbox onChange={(e) => handleHideIDColumn(e.target.checked)}>
+          Hide ID column
+        </Checkbox>
+      </Space>
+      <Table
+        columns={columns.filter((column) => column.visible)}
+        dataSource={filteredData}
+        pagination={{ ...pagination, key: Math.random() }}
+        onChange={handlePaginationChange}
+        onHeaderCell={(column) => ({
+          onClick: () => handleSort(column.dataIndex),
+        })}
+      />
+        {/* <Checkbox.Group onChange={handleCheckboxChange}>
           {Array.from(new Set(data.map((item) => item.category))).map((category) => (
             <Checkbox key={category} value={category}>
               {category}
@@ -104,14 +181,14 @@ const ReusableTable = () => {
         </Checkbox.Group>
         <Checkbox onChange={(e)=>handleHideIDColumn(e.target.checked)}>
           Hide ID column
-        </Checkbox>
-      </Space>
-      <Table
-        columns={columns.filter((column)=>column.visible)}
+        </Checkbox> */}
+      {/* </Space>
+      <Table */}
+        {/* columns={columns.filter((column)=>column.visible)}
         dataSource={filteredData}
         pagination={{...pagination,key:Math.random()}}
-        onChange={handlePaginationChange}
-      />
+        onChange={handlePaginationChange} */}
+      {/* /> */}
       <Pagination
         current={pagination.current}
         pageSize={pagination.pageSize}
